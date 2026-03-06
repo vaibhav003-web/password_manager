@@ -1,0 +1,112 @@
+import json
+import os
+import time         #used for the delay after the execution
+import hashlib      #used to encrypt master key in SHA 256
+import getpass      #used for the hidden typing while entring password
+from cryptography.fernet import Fernet
+
+vault = {}
+print("\t\t\t~~~~~~~~PASSWORD MANAGER~~~~~~~~\n")
+def hash_password(password):    
+    return hashlib.sha256(password.encode()).hexdigest()   #master password will be coberted into SHA256 string
+
+if not os.path.exists("master.key"):                       #if no master password then create     
+    print("Create a password")
+    master=getpass.getpass("New master password: ")         #getpass used two time to input passwords two times second for confirmation
+    hashed = hash_password(master)
+    with open("master.key","w") as f:
+        f.write(hashed)
+        print("Master Password Created")
+else:
+    master = getpass.getpass("Enter the master Password: ")      #if master key is there then verify function
+    with open("master.key","r") as f:
+        stored = f.read()
+        
+    if hash_password(master)!=stored:
+        print("Password is Wrong")
+        exit()                                  #exit if password is wrong
+
+
+    print("access granted")
+
+if not os.path.exists("key"):                       #check of key is there (for symmetric cryptography)
+    key = Fernet.generate_key()                     # if no then create new key 
+    with open("key", "wb") as f:
+        f.write(key)
+else:
+    with open("key","rb") as f:                     # if key already exists
+        key=f.read()   #if key already exists        
+def decrypt():                                      #decryption function
+
+    with open("key","rb") as f:
+        key=f.read()
+
+    cipher = Fernet(key)
+
+    #read encrypted vault
+    with open("lock","rb") as f:
+        encrypted = f.read()
+
+    #decrypt
+    decrypted = cipher.decrypt(encrypted)
+
+    #convert JSON back to dictionary
+    return json.loads(decrypted.decode())
+
+def encrypt(vault):                                 #encryption function
+
+    cipher = Fernet(key)
+    data = json.dumps(vault) #convert vault to JSON text
+    encrypted = cipher.encrypt(data.encode()) #encrypt data
+    with open("lock", "wb") as file:     #save encrypt vault
+        file.write(encrypted)
+        return 0
+
+while True:                                                    
+    print("\t\t\t1. ADD PASSWORD AND WEBSITE")                  #menu
+    print("\t\t\t2. FETCH THE PASSWORD OF WEBSITE")
+    print("\t\t\t3. DELETE THE PASSWORD")
+    print("\t\t\t4. EXIT")
+    print("\t\t\t5. DISPLAY SAVED SITE'S AND PASSWORD'S")
+
+    choice = input("\n\n\nEnter the number: ")
+
+    if choice == "1":
+        site= input("Enter website name: ")
+        password = input("Enter the password: ")
+
+        vault[site] = password
+        print("password added")
+        encrypt(vault)
+        time.sleep(3)
+    elif choice == "2":
+        site=input("Enter the website: ")
+        vault= decrypt()
+        if site in vault:
+         print("Password: ", vault[site])
+        else:
+             print("Wrong input Site not found")
+             encrypt(vault)
+        time.sleep(3)
+    elif choice == "3":
+        site = input("Enter the site to delete: ")
+        vault=decrypt()
+        if site in vault:
+            del vault[site]
+            print("Deleted")
+        
+        else: 
+            print("Site not found")
+        time.sleep(3)
+        encrypt(vault)
+    elif choice == "4":
+        encrypt(vault)
+        
+        print("Vault saved securely")
+        time.sleep(2)
+        print("DEVLOPED BY VAIBHAV....<<THANKS FOR USING>>")
+        break
+    elif choice == "5":
+        vault=decrypt()
+        print(vault)
+        time.sleep(3)
